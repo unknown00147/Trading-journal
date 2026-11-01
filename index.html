@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#0b0f17">
+<title>Trading Journal Pro</title>
+<style>
+:root{--bg:#0b0f17;--p:#131a26;--bd:#26324a;--tx:#e6ebf5;--mu:#8b97ad;--ac:#4f8cff;--gn:#22c55e;--rd:#ef4444;--am:#f59e0b;color-scheme:dark}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:env(safe-area-inset-top) 0 40px}
+#app{max-width:1100px;margin:0 auto;padding:12px}
+.top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0 12px}.top b{font-size:18px;flex:1}
+.nav{display:flex;gap:6px;margin-bottom:14px}.nav button,.chips button{flex:1;padding:10px 4px;border:1px solid var(--bd);background:var(--p);color:var(--tx);border-radius:10px;font:inherit;font-size:14px}
+.nav button.on,.chips button.on{background:var(--ac);border-color:var(--ac);color:#fff}
+.chips{display:flex;gap:6px;margin:6px 0 10px;flex-wrap:wrap}.chips button{padding:7px 10px;font-size:13px}
+.c{background:var(--p);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
+h3{margin:0 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--mu)}
+.mu{color:var(--mu);font-size:13px}.gn{color:var(--gn)}.rd{color:var(--rd)}.am{color:var(--am)}
+.st{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:12px}
+.st div{background:var(--p);border:1px solid var(--bd);border-radius:12px;padding:10px}.st b{display:block;font-size:20px}
+.cg{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:12px}
+.g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px}
+label{display:block;font-size:12px;color:var(--mu)}
+input,select,textarea{width:100%;margin-top:4px;padding:10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}
+label.tf,label.ck{display:inline-flex;align-items:center;gap:6px;margin:0 12px 8px 0;color:var(--tx);font-size:14px}label.tf input,label.ck input{width:18px;height:18px;margin:0}
+label.ck{display:flex;margin:0;padding:7px 0;border-bottom:1px solid var(--bd)}
+.btn,.sm{border:0;border-radius:10px;background:var(--ac);color:#fff;font:inherit;font-weight:600;padding:12px 18px}.btn{width:100%;margin-top:12px}.sm{padding:7px 12px;font-size:13px;font-weight:400;background:var(--bd);margin-left:6px}
+.pv{padding:10px;border-radius:8px;background:var(--bg);margin-bottom:12px;color:var(--mu)}
+.dn{display:flex;align-items:center;gap:16px}
+.br{margin-bottom:10px}.bl{display:flex;justify-content:space-between;gap:8px;font-size:13px;flex-wrap:wrap}.bt{height:7px;background:var(--bg);border-radius:4px;margin-top:4px}.bt i{display:block;height:100%;border-radius:4px}
+.tr{display:flex;justify-content:space-between;gap:10px}.tr .r{font-size:22px;font-weight:700;text-align:right}
+.tag{display:inline-block;background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:1px 8px;font-size:12px;margin:2px 4px 2px 0;color:var(--mu)}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin:10px 0}.kv div{background:var(--bg);border-radius:8px;padding:6px 8px}.kv span{display:block;font-size:11px;color:var(--mu)}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:7px 4px;text-align:right;border-bottom:1px solid var(--bd)}th{color:var(--mu);font-weight:400}td:first-child,th:first-child{text-align:left}
+.sc{overflow-x:auto}.lg{max-width:380px;margin:12vh auto;text-align:center}
+</style></head><body><div id="app"></div>
+<script>
+// ===== SETUP: paste your Firebase config here to enable Google login + cloud storage =====
+const FB={apiKey:"",authDomain:"",projectId:"",appId:""};
+// =========================================================================================
+const $=id=>document.getElementById(id),esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const SES=["Asian","London","New York","London/NY overlap"],TFS=["1M","5M","15M","1H","4H","Daily"],RES=["TP hit","SL hit","Breakeven","Closed in profit","Closed in loss"],
+MK=["None","Early entry","Late entry","Moved stop loss","Closed too early","Held too long","Oversized","Broke my system","Revenge trade","FOMO","Other"],
+CK=["Higher-timeframe bias is clear","Price is at a key level","Liquidity sweep or confirmation seen","Entry trigger on lower timeframe","Stop loss at a logical level","Reward to risk at least 1:2","Risk is 1% or less of account","No high-impact news soon","Calm, not revenge trading"],
+PERS=[["week","Week"],["month","Month"],["all","All"]],GPS=[["day","Daily"],["week","Weekly"],["month","Monthly"],["year","Yearly"]],SPS=[["week","Weekly"],["month","Monthly"]];
+let T=[],U=null,mode="local",per="month",gp="week",sp="week",tab="check",un=null,api={},ed=null,bal=0,ckp=[];
+try{bal=+localStorage.getItem("tjbal")||0}catch(e){}
+let rk=1,SV={};try{rk=+localStorage.getItem("tjrisk")||1;SV=JSON.parse(localStorage.getItem("tjspec")||"{}")}catch(e){}
+const DS={XAUUSD:{p:.1,c:100,q:"U"},BTCUSD:{p:1,c:1,q:"U"},USOIL:{p:.01,c:1000,q:"U"},NAS100:{p:1,c:1,q:"U"},EURUSD:{p:1e-4,c:1e5,q:"U"},GBPUSD:{p:1e-4,c:1e5,q:"U"},AUDUSD:{p:1e-4,c:1e5,q:"U"},NZDUSD:{p:1e-4,c:1e5,q:"U"},USDJPY:{p:.01,c:1e5,q:"D"},USDCAD:{p:1e-4,c:1e5,q:"D"},USDCHF:{p:1e-4,c:1e5,q:"D"}};
+const key=x=>String(x||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+function spec(pr){const k=key(pr);if(!k)return null;if(SV[k])return{...SV[k],k,ok:1};if(DS[k])return{...DS[k],k,ok:1};if(/^[A-Z]{6}$/.test(k)){const b=k.slice(0,3),q=k.slice(3);return{p:q=="JPY"?.01:1e-4,c:1e5,q:q=="USD"?"U":b=="USD"||q=="JPY"?"D":"X",k,ok:0}}return null}
+const pipVal=(x,px)=>x.q=="D"&&px>0?x.p*x.c/px:x.p*x.c;
+const m=n=>(n<0?"-":n>0?"+":"")+"$"+Math.abs(n).toFixed(2),ld=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"),byD=(a,b)=>a.date<b.date?-1:a.date>b.date?1:a.id-b.id,cl=v=>v>0?"gn":v<0?"rd":"am",fix=a=>a.filter(t=>typeof t.pl=="number");
+const opt=(L,c)=>L.map(x=>`<option${x==c?" selected":""}>${x}`).join("");
+const chips=(k,L,c)=>`<div class="chips">${L.map(([v,l])=>`<button class="${c==v?"on":""}" onclick="${k}='${v}';render()">${l}</button>`).join("")}</div>`;
+function inP(t,p){if(p=="all")return true;const n=new Date(),d=new Date(t.date+"T00:00:00"),s=new Date(n.getFullYear(),n.getMonth(),n.getDate());if(p=="week"){const w=new Date(s);w.setDate(s.getDate()-(s.getDay()+6)%7);return d>=w}if(p=="month")return d.getFullYear()==n.getFullYear()&&d.getMonth()==n.getMonth();return d>=new Date(n.getFullYear(),n.getMonth()-(p=="6m"?6:12),n.getDate())}
+function agg(a){const w=a.filter(t=>t.pl>0),l=a.filter(t=>t.pl<0),n=a.length,tot=a.reduce((s,t)=>s+t.pl,0),gw=w.reduce((s,t)=>s+t.pl,0),gl=-l.reduce((s,t)=>s+t.pl,0);let c=0,pk=0,dd=0;a.slice().sort(byD).forEach(t=>{c+=t.pl;pk=Math.max(pk,c);dd=Math.max(dd,pk-c)});return{n,w:w.length,l:l.length,b:n-w.length-l.length,wr:n?w.length/n*100:0,tot,aw:w.length?gw/w.length:0,al:l.length?gl/l.length:0,pf:gl?gw/gl:(gw?99:0),dd,best:n?Math.max(...a.map(t=>t.pl)):0,worst:n?Math.min(...a.map(t=>t.pl)):0,fol:n?a.filter(t=>t.fol=="Yes").length/n*100:0,pp:a.reduce((x,t)=>x+(t.pips||0),0)}}
+function donut(g){const n=g.n;if(!n)return'<div class="mu">No trades in this period</div>';const C=251.33;let o=0;const sg=[[g.w,"#22c55e","Profit"],[g.l,"#ef4444","Loss"],[g.b,"#f59e0b","Breakeven"]];const arcs=sg.map(([v,c])=>{const L=v/n*C,e=v?`<circle cx="60" cy="60" r="40" fill="none" stroke="${c}" stroke-width="18" stroke-dasharray="${L} ${C-L}" stroke-dashoffset="${-o}" transform="rotate(-90 60 60)"/>`:"";o+=L;return e}).join("");return`<div class="dn"><svg viewBox="0 0 120 120" width="150" height="150">${arcs}<text x="60" y="58" text-anchor="middle" font-size="20" font-weight="700" fill="#e6ebf5">${n}</text><text x="60" y="72" text-anchor="middle" font-size="9" fill="#8b97ad">trades</text></svg><div>${sg.map(([v,c,l])=>`<div><span style="color:${c}">●</span> ${l}: <b>${v}</b> (${Math.round(v/n*100)}%)</div>`).join("")}</div></div>`}
+function bars(ks,v,lab){if(!ks.length)return'<div class="mu">No data</div>';const W=420,H=170,top=16,bot=H-22,mn=Math.min(0,...v),mx=Math.max(0,...v),rg=(mx-mn)||1,y=a=>top+(mx-a)/rg*(bot-top),bw=W/ks.length;let s=`<line x1="0" x2="${W}" y1="${y(0)}" y2="${y(0)}" stroke="#26324a"/>`;ks.forEach((k,i)=>{const a=v[i],yy=Math.min(y(a),y(0)),hh=Math.max(Math.abs(y(a)-y(0)),1),x=i*bw+bw*.15,cx=x+bw*.35;s+=`<rect x="${x}" y="${yy}" width="${bw*.7}" height="${hh}" rx="2" fill="${a>=0?"#22c55e":"#ef4444"}"/><text x="${cx}" y="${a>=0?yy-3:yy+hh+9}" text-anchor="middle" font-size="9" fill="#e6ebf5">${Math.round(a)}</text><text x="${cx}" y="${H-7}" text-anchor="middle" font-size="8" fill="#8b97ad">${lab(k)}</text>`});return`<svg viewBox="0 0 ${W} ${H}" width="100%">${s}</svg>`}
+function bk(d,p){if(p=="day")return d;if(p=="month")return d.slice(0,7);if(p=="year")return d.slice(0,4);const x=new Date(d+"T00:00:00");x.setDate(x.getDate()-(x.getDay()+6)%7);return ld(x)}
+function buckets(p){const o={};T.forEach(t=>{const k=bk(t.date,p);(o[k]=o[k]||[]).push(t)});return o}
+function growth(){const o=buckets(gp),ks=Object.keys(o).sort().slice(-12);return bars(ks,ks.map(k=>agg(o[k]).tot),k=>gp=="month"?k.slice(2):gp=="year"?k:k.slice(5))+(gp=="week"?'<div class="mu">Week start date shown. Bars = net profit/loss in $</div>':'<div class="mu">Bars = net profit/loss in $</div>')}
+function equity(a){if(!a.length)return'<div class="mu">No data</div>';let c=0;const p=[0].concat(a.slice().sort(byD).map(t=>c+=t.pl)),mn=Math.min(...p),mx=Math.max(...p),rg=(mx-mn)||1,W=420,H=150,pt=p.map((v,i)=>(i/(p.length-1||1)*W).toFixed(1)+","+(H-8-(v-mn)/rg*(H-16)).toFixed(1)).join(" "),z=H-8-(0-mn)/rg*(H-16);return`<svg viewBox="0 0 ${W} ${H}" width="100%"><line x1="0" x2="${W}" y1="${z}" y2="${z}" stroke="#26324a" stroke-dasharray="3"/><polyline points="${pt}" fill="none" stroke="#4f8cff" stroke-width="2"/></svg><div class="mu">Total growth: <b class="${cl(c)}">${m(c)}</b></div>`}
+function brk(title,a,fn,note){const o={};a.forEach(t=>[].concat(fn(t)).forEach(k=>{k=k||"Not set";(o[k]=o[k]||[]).push(t)}));const r=Object.entries(o).map(([k,v])=>[k,agg(v)]).sort((x,y)=>y[1].tot-x[1].tot),mx=Math.max(1,...r.map(x=>Math.abs(x[1].tot)));return`<div class="c"><h3>${title}</h3>`+(r.length?r.map(([k,g])=>`<div class="br"><div class="bl"><span>${esc(k)}</span><span>${g.n} trades · ${g.wr.toFixed(0)}% win${g.pp?` · ${g.pp>0?"+":""}${g.pp.toFixed(0)} pips`:""} · <b class="${cl(g.tot)}">${m(g.tot)}</b></span></div><div class="bt"><i style="width:${Math.abs(g.tot)/mx*100}%;background:${g.tot>=0?"var(--gn)":"var(--rd)"}"></i></div></div>`).join(""):'<div class="mu">No data</div>')+(note&&r.length?`<div class="mu">${note}</div>`:"")+"</div>"}
+function summary(){const o=buckets(sp),ks=Object.keys(o).sort().reverse().slice(0,12);return`<div class="c"><h3>${sp=="week"?"Weekly":"Monthly"} summary</h3>${chips("sp",SPS,sp)}<div class="sc"><table><tr><th>${sp=="week"?"Week of":"Month"}</th><th>Trades</th><th>Win</th><th>Loss</th><th>BE</th><th>Net closed</th></tr>`+(ks.length?ks.map(k=>{const g=agg(o[k]);return`<tr><td>${k}</td><td>${g.n}</td><td class="gn">${g.w}</td><td class="rd">${g.l}</td><td class="am">${g.b}</td><td class="${cl(g.tot)}"><b>${m(g.tot)}</b></td></tr>`}).join(""):'<tr><td colspan="6" class="mu">No data</td></tr>')+`</table></div></div>`}
+function insight(a){const o={};a.forEach(t=>{if(t.etf&&t.etf!="Not set")(o[t.etf]=o[t.etf]||[]).push(t)});const r=Object.entries(o).map(([k,v])=>[k,agg(v)]).sort((x,y)=>y[1].tot-x[1].tot),lt=a.filter(t=>t.lot),rs=a.filter(t=>t.rsk>0);let h="";
+if(r.length){const[k,g]=r[0];h+=`Best entry timeframe so far: <b>${esc(k)}</b> (${g.n} trades, ${g.wr.toFixed(0)}% win, <span class="${cl(g.tot)}">${m(g.tot)}</span>).${g.n<20?' <span class="am">Small sample. You need about 20+ trades per timeframe before trusting this.</span>':""}`}else h+="Choose an entry timeframe on new trades to see which timeframe works best for you.";
+if(lt.length){const al=lt.reduce((x,t)=>x+t.lot,0)/lt.length,ar=rs.length?rs.reduce((x,t)=>x+t.rsk,0)/rs.length:0;h+=`<br>Average lot <b>${al.toFixed(2)}</b>`+(ar?`, average risk <b>$${ar.toFixed(2)}</b>`+(bal>0?` (${(ar/bal*100).toFixed(1)}% of account)`:""):"")+(ar&&bal>0&&ar/bal*100>rk?` <span class="am">Above your ${rk}% risk setting.</span>`:"")}
+return`<div class="c"><h3>Insights</h3>${h}</div>`}
+function setBal(){bal=parseFloat($("bal").value)||0;try{localStorage.setItem("tjbal",bal)}catch(e){}render()}
+function vDash(){const a=T.filter(t=>inP(t,per)),g=agg(a),tile=(l,v,c)=>`<div><span class="mu">${l}</span><b${c?` class="${c}"`:""}>${v}</b></div>`;
+return chips("per",PERS,per)+`<div class="st">${tile("Net profit / loss",m(g.tot),cl(g.tot))}${tile("Win rate",g.wr.toFixed(0)+"%")}${tile("Trades",`${g.n} <span style="font-size:12px;font-weight:400"><span class="gn">${g.w}W</span> <span class="rd">${g.l}L</span> <span class="am">${g.b}BE</span></span>`)}${tile("Net pips",(g.pp>0?"+":"")+g.pp.toFixed(0),cl(g.pp))}</div>
+${insight(a)}
+<div class="c"><h3>Growth ($)</h3>${equity(a)}</div>
+<div class="cg">${brk("By entry timeframe",a,t=>t.etf&&t.etf!="Not set"?t.etf:"Not set")}${brk("By instrument",a,t=>t.pair)}</div>
+<details><summary class="c" style="cursor:pointer;margin-bottom:12px">More details</summary>
+<div class="st">${tile("Average win",m(g.aw),"gn")}${tile("Average loss",g.al?m(-g.al):"$0.00","rd")}${tile("Profit factor",g.pf>=99?"∞":g.pf.toFixed(2))}${tile("Max drawdown","-$"+g.dd.toFixed(2),"rd")}${tile("Best trade",m(g.best),"gn")}${tile("Worst trade",m(g.worst),"rd")}</div>
+<div class="cg"><div class="c"><h3>Profit / Loss / Breakeven</h3>${donut(g)}</div>${brk("By session",a,t=>t.se)}</div></details>`}
+function ckt(){return ckp.length+"/"+CK.length+" ticked"+(ckp.length<CK.length?". Not everything is ticked. Be honest before you trade.":". All clear.")}
+function togCk(i,v){ckp=v?[...new Set([...ckp,i])]:ckp.filter(x=>x!=i);$("cks").textContent=ckt()}
+function vCheck(){const f=T.length?T.filter(t=>t.fol=="Yes").length/T.length*100:0,sc=T.filter(t=>typeof t.sc=="number"),av=sc.length?sc.reduce((x,t)=>x+t.sc,0)/sc.length:0,hi=sc.filter(t=>t.sc>=80),lo=sc.filter(t=>t.sc<80),wr=l=>l.length?agg(l).wr.toFixed(0)+"% win ("+l.length+" trades)":"no trades";
+return`<div class="c"><h3>Before every trade</h3>${CK.map((x,i)=>`<label class="ck"><input type="checkbox"${ckp.includes(i)?" checked":""} onchange="togCk(${i},this.checked)">${x}</label>`).join("")}<div id="cks" class="mu" style="margin-top:10px">${ckt()}</div><button class="btn" onclick="ed=null;tab='new';render();scrollTo(0,0)">Continue to new trade</button></div>
+<div class="c"><h3>My discipline</h3><div class="st"><div><span class="mu">System followed</span><b>${T.length?f.toFixed(0)+"%":"-"}</b></div><div><span class="mu">Avg checklist score</span><b>${sc.length?av.toFixed(0)+"%":"-"}</b></div></div><div class="mu">Checklist 80%+: ${wr(hi)}<br>Checklist below 80%: ${wr(lo)}</div></div>`}
+function setB(v){bal=parseFloat(v)||0;try{localStorage.setItem("tjbal",bal)}catch(e){}pv()}
+function setR(v){rk=parseFloat(v)||1;try{localStorage.setItem("tjrisk",rk)}catch(e){}pv()}
+function syncSpec(){const x=spec($("p").value),a=$("sp_p"),b=$("sp_c"),n=$("sp_n");if(!a)return;a.value=x?x.p:"";b.value=x?x.c:"";n.textContent=x?(x.ok?"":"Estimated for this pair. Check with your broker."):"Unknown instrument. Enter pip size and contract size to enable pips and lot size."}
+function saveSpec(){const k=key($("p").value),p=parseFloat($("sp_p").value),c=parseFloat($("sp_c").value);if(!k||!(p>0)||!(c>0))return;const b=spec(k);SV[k]={p,c,q:b?b.q:"U"};try{localStorage.setItem("tjspec",JSON.stringify(SV))}catch(e){}pv()}
+function vNew(){const e=ed||{},nf=(id,l,v)=>`<label>${l}<input id="${id}" type="number" step="any" inputmode="decimal" value="${v??""}" oninput="pv()"></label>`;return`<div class="c"><h3>${ed?"Edit trade":"New trade"}</h3>${ed?"":`<div class="pv">Checklist: <b>${ckp.length}/${CK.length}</b> ticked. <a href="#" onclick="tab='check';render();return false" style="color:var(--ac)">Open checklist</a></div>`}<div class="g2">
+<label>Date<input id="d" type="date" value="${e.date||ld(new Date())}"></label>
+<label>Instrument<input id="p" list="pl" value="${esc(e.pair||"")}" placeholder="XAUUSD" oninput="syncSpec();pv()"><datalist id="pl"><option>XAUUSD<option>BTCUSD<option>USOIL<option>EURUSD<option>GBPUSD<option>USDJPY<option>NAS100</datalist></label>
+<label>Direction<select id="dir" onchange="pv()">${opt(["Buy","Sell"],e.dir)}</select></label>
+<label>Session<select id="se">${opt(SES,e.se)}</select></label>
+${nf("en","Entry",e.en)}${nf("sl","Stop loss (SL)",e.sl)}${nf("tp","Target (TP)",e.tp)}${nf("lot","Lot size",e.lot)}<label>Entry timeframe<select id="etf">${opt(["Not set",...TFS],e.etf)}</select></label></div>
+<div class="g2"><label>Account balance ($)<input id="acb" type="number" step="any" inputmode="decimal" value="${bal||""}" oninput="setB(this.value)" placeholder="e.g. 1000"></label><label>Risk per trade (%)<input id="rkp" type="number" step="any" inputmode="decimal" value="${rk}" oninput="setR(this.value)"></label></div>
+<div id="pv" class="pv"></div>
+<details style="margin:0 0 10px"><summary class="mu" style="cursor:pointer">Instrument spec (pip size, contract size)</summary><div class="g2" style="margin-top:8px"><label>Pip size<input id="sp_p" type="number" step="any" inputmode="decimal" onchange="saveSpec()"></label><label>Contract size (units per 1 lot)<input id="sp_c" type="number" step="any" inputmode="decimal" onchange="saveSpec()"></label></div><div class="mu" id="sp_n"></div></details>
+<div class="g2"><label>Result<select id="res">${opt(RES,e.res)}</select></label><label>Profit or loss amount ($)<input id="am" type="number" step="any" inputmode="decimal" value="${e.pl?Math.abs(e.pl):""}" placeholder="Empty = auto from lot"></label><label>System followed?<select id="fol">${opt(["Yes","No"],e.fol)}</select></label></div>
+<h3>All timeframes used (select any)</h3><div>${TFS.map(x=>`<label class="tf"><input type="checkbox" name="tf" value="${x}"${(e.tfs||[]).includes(x)?" checked":""}>${x}</label>`).join("")}</div>
+<label>Reason for the trade<textarea id="rs" rows="2">${esc(e.rs||"")}</textarea></label>
+<div class="g2" style="margin-top:10px"><label>Mistake<select id="mk">${opt(MK,e.mk)}</select></label></div>
+<label>What did you learn?<textarea id="ln" rows="2">${esc(e.ln||"")}</textarea></label>
+<button class="btn" onclick="addT()">${ed?"Update trade":"Save trade"}</button>${ed?'<button class="btn" style="background:var(--bd)" onclick="ed=null;tab=\'journal\';render()">Cancel</button>':""}</div>`}
+function pv(){const n=id=>parseFloat($(id).value),en=n("en"),sl=n("sl"),tp=n("tp"),lot=n("lot"),x=spec($("p").value),r=Math.abs(en-sl),ok=r>0&&tp>0;let h=ok?`Planned ratio <b>1:${(Math.abs(tp-en)/r).toFixed(2)}</b>`:"Enter entry, SL and TP to see the planned ratio";
+if(x&&en>0&&r>0){const pvl=pipVal(x,en),slp=Math.round(r/x.p*100)/100,tpp=tp>0?Math.round(Math.abs(tp-en)/x.p*100)/100:0;h+=`<br>SL <b>${slp.toFixed(1)} pips</b>`+(tpp?`, TP <b>${tpp.toFixed(1)} pips</b>`:"")+` · $${pvl.toFixed(2)} per pip per 1.00 lot`;
+if(bal>0){const rd=bal*rk/100,sg=Math.floor(rd/(slp*pvl)*100)/100;h+=`<br>Risk ${rk}% of $${bal} = $${rd.toFixed(2)}. Suggested lot: <b>${sg>=0.01?sg.toFixed(2):"below 0.01"}</b>`}else h+="<br>Enter account balance to get a suggested lot size";
+if(lot>0){const rs=lot*slp*pvl;h+=`<br>Your lot ${lot}: risk <b class="rd">$${rs.toFixed(2)}</b>`+(bal>0?` (${(rs/bal*100).toFixed(2)}%)`:"")+(tpp?`, reward <b class="gn">$${(lot*tpp*pvl).toFixed(2)}</b>`:"")}
+if(!x.ok||x.q=="X")h+='<br><span class="am">Estimated for this pair. Check pip size in the spec box below.</span>'}
+else if(!x)h+='<br><span class="am">Unknown instrument. Open the spec box below to set pip size.</span>';
+$("pv").innerHTML=h}
+function addT(){const n=id=>parseFloat($(id).value),en=n("en"),sl=n("sl"),tp=n("tp"),res=$("res").value;
+ if(!$("p").value.trim()||isNaN(en)||isNaN(sl)){alert("Fill instrument, entry and SL.");return}
+ const x=spec($("p").value),r=Math.abs(en-sl),lot=n("lot")>0?n("lot"):null,pvl=x?pipVal(x,en):null,slp=x?+(r/x.p).toFixed(1):null,tpp=x&&tp>0?+(Math.abs(tp-en)/x.p).toFixed(1):null;
+ let am=Math.abs(n("am")||0);
+ if(!am&&lot&&x){if(res=="TP hit"&&tpp)am=+(tpp*lot*pvl).toFixed(2);else if(res=="SL hit"&&slp)am=+(slp*lot*pvl).toFixed(2)}
+ if(res!="Breakeven"&&!am){alert("Enter the profit or loss amount in $. Or enter a lot size and choose TP hit or SL hit to calculate it.");return}
+ const pl=res=="Breakeven"?0:(res=="TP hit"||res=="Closed in profit"?am:-am),pips=x?(lot&&pvl?+(pl/(lot*pvl)).toFixed(1):res=="TP hit"&&tpp?tpp:res=="SL hit"&&slp?-slp:res=="Breakeven"?0:null):null,etf=$("etf").value,tfs=[...document.querySelectorAll("[name=tf]:checked")].map(v=>v.value);
+ if(etf!="Not set"&&!tfs.includes(etf))tfs.push(etf);tfs.sort((a,b)=>TFS.indexOf(a)-TFS.indexOf(b));
+ const ckv=ed&&ed.ckv?ed.ckv:ckp.slice(),t={id:ed?ed.id:Date.now(),date:$("d").value,pair:$("p").value.trim().toUpperCase(),dir:$("dir").value,se:$("se").value,en,sl,tp:isNaN(tp)?null:tp,rr:r>0&&tp>0?+(Math.abs(tp-en)/r).toFixed(2):null,res,pl,fol:$("fol").value,tfs,etf,lot,slp,tpp,pips,rsk:lot&&pvl&&slp?+(lot*slp*pvl).toFixed(2):null,rs:$("rs").value,mk:$("mk").value,ln:$("ln").value,ckv,sc:Math.round(ckv.length/CK.length*100)};api.save(t);ckp=[];ed=null;tab="journal";render();scrollTo(0,0)}
+function vList(){if(!T.length)return'<div class="c mu">No trades yet. Add your first trade.</div>';return`<div style="text-align:right;margin-bottom:10px"><button class="sm" onclick="csv()">Export CSV</button></div>`+T.slice().sort(byD).reverse().map(t=>`<div class="c"><div class="tr"><div><b>${esc(t.pair)}</b> ${esc(t.dir)} <span class="mu">· ${esc(t.date)}</span><div><span class="tag">${esc(t.res)}</span></div></div><div class="r ${cl(t.pl)}">${t.pl>0?"Profit "+m(t.pl):t.pl<0?"Loss "+m(t.pl):"Breakeven"}</div></div>
+<div class="kv"><div><span>Entry</span>${t.en}</div><div><span>SL</span>${t.sl}</div><div><span>TP</span>${t.tp??"-"}</div><div><span>System</span>${t.fol=="Yes"?"Followed":"Not followed"}</div><div><span>Session</span>${esc(t.se)}</div><div><span>Timeframes</span>${(t.tfs||[]).join(", ")||"-"}</div><div><span>Entry TF</span>${esc(t.etf&&t.etf!="Not set"?t.etf:"-")}</div><div><span>Lot</span>${t.lot??"-"}</div><div><span>SL / TP pips</span>${t.slp??"-"} / ${t.tpp??"-"}</div><div><span>Result pips</span>${t.pips==null?"-":`<b class="${cl(t.pips)}">${t.pips>0?"+":""}${t.pips}</b>`}</div><div><span>Risk $</span>${t.rsk==null?"-":"$"+t.rsk}</div></div>
+${t.rs?`<div class="mu">Reason: <span style="color:var(--tx)">${esc(t.rs)}</span></div>`:""}${t.mk&&t.mk!="None"?`<div class="mu">Mistake: <span class="rd">${esc(t.mk)}</span></div>`:""}${t.ln?`<div class="mu">Learned: <span style="color:var(--tx)">${esc(t.ln)}</span></div>`:""}
+<div style="text-align:right;margin-top:6px"><button class="sm" onclick="editT(${t.id})">Edit</button><button class="sm" onclick="delT(${t.id})">Delete</button></div></div>`).join("")}
+function editT(id){ed=T.find(t=>t.id==id);tab="new";render();scrollTo(0,0)}
+function delT(id){if(confirm("Delete this trade?"))api.del(id)}
+function csv(){const h="date,instrument,direction,session,entry,sl,tp,result,profit_loss_usd,system_followed,timeframes,entry_tf,lot,sl_pips,tp_pips,result_pips,risk_usd,mistake,lesson,reason,checklist\n",b=new Blob([h+T.slice().sort(byD).map(t=>[t.date,t.pair,t.dir,t.se,t.en,t.sl,t.tp??"",t.res,t.pl,t.fol,(t.tfs||[]).join("|"),t.etf||"",t.lot??"",t.slp??"",t.tpp??"",t.pips??"",t.rsk??"",t.mk||"",'"'+(t.ln||"").replace(/"/g,'""')+'"','"'+(t.rs||"").replace(/"/g,'""')+'"',t.sc].join(",")).join("\n")],{type:"text/csv"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="trades.csv";a.click()}
+function render(){
+ if(mode=="cloud"&&!U){$("app").innerHTML=`<div class="c lg"><h1>📈 Trading Journal Pro</h1><p class="mu">Your private trading journal. Sign in with Google. Only you can see your trades.</p><button class="btn" onclick="gSign()">Sign in with Google</button></div>`;return}
+ $("app").innerHTML=`<div class="top"><b>📈 Trading Journal Pro</b><span class="mu">${mode=="cloud"?esc(U.email):"Local mode · saved on this device only"}</span>${mode=="cloud"?'<button class="sm" onclick="gOut()">Sign out</button>':""}</div><div class="nav">${[["check","Checklist"],["dash","Dashboard"],["new","New"],["journal","Journal"]].map(([k,l])=>`<button class="${tab==k?"on":""}" onclick="${k!="new"?"ed=null;":""}tab='${k}';render();scrollTo(0,0)">${l}</button>`).join("")}</div>`+(tab=="check"?vCheck():tab=="dash"?vDash():tab=="new"?vNew():vList());if(tab=="new"){syncSpec();pv()}}
+function lsave(){try{localStorage.setItem("tjpro",JSON.stringify(T))}catch(e){}render()}
+api={save:async t=>{T=T.filter(x=>x.id!=t.id).concat(t);lsave()},del:async id=>{T=T.filter(x=>x.id!=id);lsave()}};
+async function boot(){
+ if(!FB.apiKey){try{T=fix(JSON.parse(localStorage.getItem("tjpro")||"[]"))}catch(e){}render();return}
+ const B="https://www.gstatic.com/firebasejs/10.12.2/",[a,au,fs]=await Promise.all([import(B+"firebase-app.js"),import(B+"firebase-auth.js"),import(B+"firebase-firestore.js")]),app=a.initializeApp(FB),auth=au.getAuth(app),db=fs.getFirestore(app);mode="cloud";
+ window.gSign=()=>au.signInWithPopup(auth,new au.GoogleAuthProvider()).catch(e=>alert(e.message));window.gOut=()=>au.signOut(auth);
+ au.onAuthStateChanged(auth,u=>{U=u;if(un)un();T=[];if(u){const col=fs.collection(db,"users",u.uid,"trades");un=fs.onSnapshot(col,s=>{T=fix(s.docs.map(d=>d.data()));render()});api={save:t=>fs.setDoc(fs.doc(col,String(t.id)),t),del:id=>fs.deleteDoc(fs.doc(col,String(id)))}}render()});render()}
+boot();
+</script></body></html>
